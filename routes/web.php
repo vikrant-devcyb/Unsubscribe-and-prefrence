@@ -30,8 +30,9 @@ Route::get('/', function (Request $request) {
         return view('welcome');
         //return response("Missing shop parameter.", 400);
     }
-    $encrypted = ShopStorage::get($shop);
-    $accessToken = ShopStorage::decryptToken($encrypted);
+    // $encrypted = ShopStorage::get($shop);
+    // $accessToken = ShopStorage::decryptToken($encrypted);
+    $accessToken = env('SHOPIFY_ACCESS_TOKEN');
     if ($accessToken) {
         return view('shopify.dashboard', ['shop' => $shop]);
     } else {
