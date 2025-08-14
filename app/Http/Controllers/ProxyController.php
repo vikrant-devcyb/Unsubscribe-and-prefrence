@@ -72,13 +72,14 @@ class ProxyController extends Controller
         //     return response()->json(['error' => 'Shop not found'], 404);
         // }
 
-        $encrypted = ShopStorage::get($shopDomain);
-        $accessToken = ShopStorage::decryptToken($encrypted);
+        // $encrypted = ShopStorage::get($shopDomain);
+        // $accessToken = ShopStorage::decryptToken($encrypted);
+        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
         if (!$shopDomain) {
             return response()->json(['error' => 'Shop not found'], 404);
         }
 
-        $accessToken = $shop->access_token;
+        // $accessToken = $shop->access_token;
         // Search customer by email
         $searchResponse = Http::withHeaders([
             'X-Shopify-Access-Token' => $accessToken,

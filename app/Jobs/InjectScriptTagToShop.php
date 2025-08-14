@@ -26,6 +26,7 @@ class InjectScriptTagToShop implements ShouldQueue
     public function handle()
     {
         $scripts = ['/unsubscribe.js'];
+        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
 
         foreach ($scripts as $scriptPath) {
             $scriptUrl = rtrim(env('APP_URL'), '/') . $scriptPath;

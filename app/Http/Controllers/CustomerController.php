@@ -15,8 +15,9 @@ class CustomerController extends Controller
         $customerId = $request->customer_id;
 
         $shopifyDomain = env('SHOPIFY_SHOP');
-        $encrypted = ShopStorage::get($shopifyDomain);
-        $accessToken = ShopStorage::decryptToken($encrypted);
+        // $encrypted = ShopStorage::get($shopifyDomain);
+        // $accessToken = ShopStorage::decryptToken($encrypted);
+        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
         $url = "https://{$shopifyDomain}/admin/api/2025-07/customers/{$customerId}.json";
 
         $client = new \GuzzleHttp\Client();
@@ -44,8 +45,9 @@ class CustomerController extends Controller
         $customerId = $request->query('customer_id');
 
         $shopifyDomain = env('SHOPIFY_SHOP');
-        $encrypted = ShopStorage::get($shopifyDomain);
-        $accessToken = ShopStorage::decryptToken($encrypted);
+        // $encrypted = ShopStorage::get($shopifyDomain);
+        // $accessToken = ShopStorage::decryptToken($encrypted);
+        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
 
         $url = "https://{$shopifyDomain}/admin/api/2025-07/customers/{$customerId}.json";
 
