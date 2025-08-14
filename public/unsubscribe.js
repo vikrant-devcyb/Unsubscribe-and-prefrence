@@ -3,10 +3,10 @@
 // ===========================
 
 function showLoader() {
-    let loader = document.getElementById('location-check-loader');
+    let loader = document.getElementById('unsubscribeButton');
     if (!loader) {
         loader = document.createElement('div');
-        loader.id = 'location-check-loader';
+        loader.id = 'unsubscribeButton';
         loader.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;';
         loader.innerHTML = `
             <div style="text-align:center;">
@@ -23,7 +23,7 @@ function showLoader() {
 }
 
 function hideLoader() {
-    const loader = document.getElementById('location-check-loader');
+    const loader = document.getElementById('unsubscribeButton');
     if (loader) loader.style.display = 'none';
 }
 
