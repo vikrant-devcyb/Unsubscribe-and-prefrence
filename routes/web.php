@@ -16,11 +16,6 @@ Route::get('/clear-cache', function () {
     return 'Config, cache, route, and view caches cleared!';
 });
 
-Route::get('/generate-key', function () {
-    Artisan::call('key:generate', ['--force' => true]);
-    return 'Application key generated successfully!';
-});
-
 // OAuth start
 Route::get('/shopify/install', [ShopifyController::class, 'install']);
 Route::get('/shopify/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
