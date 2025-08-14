@@ -24,6 +24,66 @@ class ProxyController extends Controller
         //     return response()->json(['error' => 'Invalid app proxy signature'], 403);
         // }
 
+        $email = $request->query('email');
+        $shopDomain = $request->query('shop');
+
+        if (!$email || !$shopDomain) {
+            return response()->json(['error' => 'Missing email or shop parameter'], 400);
+        }
+
+        // $shop = Shop::where('shopify_domain', $shopDomain)->first();
+        // if (!$shop) {
+        //     return response()->json(['error' => 'Shop not found'], 404);
+        // }
+
+        // $encrypted = ShopStorage::get($shopDomain);
+        // $accessToken = ShopStorage::decryptToken($encrypted);
+        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
+        if (!$shopDomain) {
+            return response()->json(['error' => 'Shop not found'], 404);
+        }
+
+        // $accessToken = $shop->access_token;
+        // Search customer by email
+        $searchResponse = Http::withHeaders([
+            'X-Shopify-Access-Token' => $accessToken,
+        ])->get("https://{$shopDomain}/admin/api/2024-04/customers/search.json", [
+            'query' => $email
+        ]);
+
+        if ($searchResponse->failed() || empty($searchResponse['customers'])) {
+            return response()->json(['error' => 'Customer not found'], 404);
+        }
+
+        $customer = $searchResponse['customers'][0];
+        $customerId = $customer['id'];
+
+        //Check if already unsubscribed
+        $emailConsent = $customer['email_marketing_consent']['state'] ?? null;
+
+        if ($emailConsent === 'unsubscribed') {
+            return response()->json(['message' => 'Customer is already unsubscribed']);
+        }
+
+        // Update customer to unsubscribe
+        $updateResponse = Http::withHeaders([
+            'X-Shopify-Access-Token' => $accessToken,
+            'Content-Type' => 'application/json'
+        ])->put("https://{$shopDomain}/admin/api/2025-04/customers/{$customerId}.json", [
+            'customer' => [
+                'id' => $customerId,
+                'email_marketing_consent' => [
+                    'state' => 'unsubscribed'
+                ]
+            ]
+        ]);
+
+        if ($updateResponse->successful()) {
+            return response()->json(['message' => 'Customer unsubscribed successfully']);
+        } else {
+            return response()->json(['error' => 'Failed to unsubscribe customer'], 500);
+        }
+
         $this->unsubscribeCustomer($request);
     }
 
