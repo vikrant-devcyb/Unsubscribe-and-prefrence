@@ -45,12 +45,15 @@ class ShopifyController extends Controller
             'code' => $code,
         ]);
         $accessToken = $response['access_token'];
+        
         ShopStorage::set($shop, $accessToken);
         session(['shop' => $shop, 'access_token' => $accessToken]);
 
         // Inject ScriptTag with APP_URL
         InjectScriptTagToShop::dispatch($shop, $accessToken); // using job
 
+        echo"<pre>"; print_r($accessToken);  die;
+        
         $lastDate = '05-07-2025';
         return view('shopify.installed', [
             'shop' => $shop,
