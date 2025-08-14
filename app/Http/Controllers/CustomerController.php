@@ -72,7 +72,11 @@ class CustomerController extends Controller
         $origin = request()->headers->get('Origin');
         // Whitelist Shopify store domain only
         $shopifyDomain = env('SHOPIFY_SHOP');
-        $allowedOrigins = ['https://' . $shopifyDomain];
+        $allowedOrigins = [
+            'https://' . $shopifyDomain,
+            'https://brownsfashion.com'
+        ];
+
         if (!in_array($origin, $allowedOrigins)) {
             return response()->json(['error' => 'CORS not allowed'], 403);
         }
