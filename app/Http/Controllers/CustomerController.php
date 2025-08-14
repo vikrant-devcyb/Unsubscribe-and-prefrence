@@ -37,7 +37,7 @@ class CustomerController extends Controller
             'status' => 'success',
             'shopify_response'   => json_decode($response->getBody(), true),
         ]);
-    }
+    } 
 
     public function getCustomerTags(Request $request): JsonResponse
     {
