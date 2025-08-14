@@ -33,20 +33,20 @@ class InjectScriptTagToShop implements ShouldQueue
             try {
                 // Remove existing ScriptTag with same src (optional cleanup)
                 $existing = Http::withHeaders([
-                    'X-Shopify-Access-Token' => $this->accessToken
+                    'X-Shopify-Access-Token' => $accessToken
                 ])->get("https://{$this->shopDomain}/admin/api/2024-04/script_tags.json");
 
                 foreach ($existing['script_tags'] ?? [] as $tag) {
                     if ($tag['src'] === $scriptUrl) {
                         Http::withHeaders([
-                            'X-Shopify-Access-Token' => $this->accessToken
+                            'X-Shopify-Access-Token' => $accessToken
                         ])->delete("https://{$this->shopDomain}/admin/api/2024-04/script_tags/{$tag['id']}.json");
                     }
                 }
 
                 // Inject new ScriptTag
                 $inject = Http::withHeaders([
-                    'X-Shopify-Access-Token' => $this->accessToken
+                    'X-Shopify-Access-Token' => $accessToken
                 ])->post("https://{$this->shopDomain}/admin/api/2024-04/script_tags.json", [
                     'script_tag' => [
                         'event' => 'onload',
