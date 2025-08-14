@@ -3,10 +3,10 @@
 // ===========================
 
 function showLoader() {
-    let loader = document.getElementById('unsubscribeButton');
+    let loader = document.getElementById('location-check-loader');
     if (!loader) {
         loader = document.createElement('div');
-        loader.id = 'unsubscribeButton';
+        loader.id = 'location-check-loader';
         loader.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;';
         loader.innerHTML = `
             <div style="text-align:center;">
@@ -23,7 +23,7 @@ function showLoader() {
 }
 
 function hideLoader() {
-    const loader = document.getElementById('unsubscribeButton');
+    const loader = document.getElementById('location-check-loader');
     if (loader) loader.style.display = 'none';
 }
 
@@ -33,7 +33,7 @@ async function unsubscribeCustomer(email, shop) {
         updateStatusMessage("No email found to unsubscribe.", 'error');
         return;
     }
-    showLoader();
+    // showLoader();
 
     try {
         const url = `/apps/unsubscribe-preference?action=unsubscribe&email=${encodeURIComponent(email)}&shop=${encodeURIComponent(shop)}`;
@@ -50,7 +50,8 @@ async function unsubscribeCustomer(email, shop) {
         console.error("Error unsubscribing customer:", err);
         updateStatusMessage("Error unsubscribing customer. Please try again later.", 'error');
     } finally {
-        hideLoader();
+        // hideLoader();
+        console.log('Finally');
     }
 }
 
