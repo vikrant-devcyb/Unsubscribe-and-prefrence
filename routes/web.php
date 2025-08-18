@@ -32,7 +32,9 @@ Route::get('/', function (Request $request) {
     }
     // $encrypted = ShopStorage::get($shop);
     // $accessToken = ShopStorage::decryptToken($encrypted);
-    $accessToken = env('SHOPIFY_ACCESS_TOKEN');
+    
+    $accessToken = ShopStorage::get($shop);
+    // $accessToken = env('SHOPIFY_ACCESS_TOKEN');
     if ($accessToken) {
         return view('shopify.dashboard', ['shop' => $shop]);
     } else {
