@@ -1,76 +1,113 @@
 <?php
- 
+
 namespace App\Http\Controllers;
- 
+
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\ShopStorage;
- 
+
 class CustomerController extends Controller
 {
+    private $apiVersion = '2024-04'; // Standardized API version
+
     public function updateCustomerTags(Request $request): JsonResponse
     {
-        $tags = implode(', ', $request->tags);
-        $customerId = $request->customer_id;
+        try {
+            $tags = implode(', ', $request->tags);
+            $customerId = $request->customer_id;
+            $shopifyDomain = env('SHOPIFY_SHOP');
 
-        $shopifyDomain = env('SHOPIFY_SHOP');
-        // $encrypted = ShopStorage::get($shopifyDomain);
-        // $accessToken = ShopStorage::decryptToken($encrypted);
-        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
-        $url = "https://{$shopifyDomain}/admin/api/2025-07/customers/{$customerId}.json";
+            // Get access token from SQLite database
+            $accessToken = ShopStorage::get($shopifyDomain);
+            
+            if (!$accessToken) {
+                Log::error("Access token not found for shop: {$shopifyDomain}");
+                return $this->corsResponse(['error' => 'Shop not authenticated'], 401);
+            }
 
-        $client = new \GuzzleHttp\Client();
-        $response = $client->put($url, [
-            'headers' => [
+            $url = "https://{$shopifyDomain}/admin/api/{$this->apiVersion}/customers/{$customerId}.json";
+
+            // Use Http facade instead of Guzzle for consistency
+            $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
                 'X-Shopify-Access-Token' => $accessToken,
-            ],
-            'json' => [
+            ])->put($url, [
                 'customer' => [
                     'id' => $customerId,
                     'tags' => $tags,
                 ],
-            ],
-        ]);
+            ]);
 
-        return $this->corsResponse([
-            'status' => 'success',
-            'shopify_response'   => json_decode($response->getBody(), true),
-        ]);
-    } 
+            if ($response->successful()) {
+                Log::info("Customer tags updated successfully: {$customerId}");
+                return $this->corsResponse([
+                    'status' => 'success',
+                    'shopify_response' => $response->json(),
+                ]);
+            } else {
+                Log::error("Failed to update customer tags: {$customerId}", [
+                    'response' => $response->json()
+                ]);
+                return $this->corsResponse(['error' => 'Failed to update customer tags'], 500);
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Exception updating customer tags: " . $e->getMessage());
+            return $this->corsResponse(['error' => 'Internal server error'], 500);
+        }
+    }
 
     public function getCustomerTags(Request $request): JsonResponse
     {
-        $customerId = $request->query('customer_id');
+        try {
+            $customerId = $request->query('customer_id');
 
-        $shopifyDomain = env('SHOPIFY_SHOP');
-        // $encrypted = ShopStorage::get($shopifyDomain);
-        // $accessToken = ShopStorage::decryptToken($encrypted);
-        $accessToken = env('SHOPIFY_ACCESS_TOKEN');
+            if (!$customerId) {
+                return $this->corsResponse(['error' => 'Customer ID is required'], 400);
+            }
 
-        $url = "https://{$shopifyDomain}/admin/api/2025-07/customers/{$customerId}.json";
+            $shopifyDomain = env('SHOPIFY_SHOP');
+            
+            // Get access token from SQLite database
+            $accessToken = ShopStorage::get($shopifyDomain);
+            
+            if (!$accessToken) {
+                Log::error("Access token not found for shop: {$shopifyDomain}");
+                return $this->corsResponse(['error' => 'Shop not authenticated'], 401);
+            }
 
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($url, [
-            'headers' => [
+            $url = "https://{$shopifyDomain}/admin/api/{$this->apiVersion}/customers/{$customerId}.json";
+
+            // Use Http facade for consistency
+            $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
                 'X-Shopify-Access-Token' => $accessToken,
-            ],
-        ]);
+            ])->get($url);
 
-        $customer = json_decode($response->getBody(), true)['customer'];
+            if ($response->successful()) {
+                $customer = $response->json()['customer'];
+                Log::info("Customer tags retrieved successfully: {$customerId}");
+                return $this->corsResponse([
+                    'tags' => $customer['tags'] ?? ''
+                ]);
+            } else {
+                Log::error("Failed to get customer tags: {$customerId}", [
+                    'response' => $response->json()
+                ]);
+                return $this->corsResponse(['error' => 'Failed to get customer tags'], 500);
+            }
 
-        return $this->corsResponse([
-            'tags' => $customer['tags'] ?? ''
-        ]);
+        } catch (\Exception $e) {
+            Log::error("Exception getting customer tags: " . $e->getMessage());
+            return $this->corsResponse(['error' => 'Internal server error'], 500);
+        }
     }
 
- 
     protected function corsResponse(array $data, int $status = 200): JsonResponse
     {
         $origin = request()->headers->get('Origin');
-        // Whitelist Shopify store domain only
         $shopifyDomain = env('SHOPIFY_SHOP');
         $allowedOrigins = [
             'https://' . $shopifyDomain,
@@ -78,6 +115,7 @@ class CustomerController extends Controller
         ];
 
         if (!in_array($origin, $allowedOrigins)) {
+            Log::warning("CORS not allowed for origin: {$origin}");
             return response()->json(['error' => 'CORS not allowed'], 403);
         }
 
@@ -87,5 +125,4 @@ class CustomerController extends Controller
             ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     }
-
 }

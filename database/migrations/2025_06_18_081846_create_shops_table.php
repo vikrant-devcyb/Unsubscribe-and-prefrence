@@ -13,9 +13,12 @@ return new class extends Migration
     {
         Schema::create('shops', function (Blueprint $table) {
             $table->id();
-            $table->string('shopify_domain')->unique();
-            $table->string('access_token');
+            $table->string('shop_domain')->unique();
+            $table->text('access_token');
+            $table->timestamp('installed_at')->nullable();
             $table->timestamps();
+            
+            $table->index('shop_domain');
         });
     }
 

@@ -10,27 +10,30 @@ use App\Jobs\InjectScriptTagToShop;
 
 class ShopifyController extends Controller
 {
-    /**
-     * Intall Shopify APP
-     * Allow Some Scopes
-    */
     public function install(Request $request)
     {
         $shop = $request->get('shop');
+        
+        if (!$shop) {
+            Log::error('Shop parameter missing in install request');
+            return redirect()->back()->with('error', 'Shop parameter is required');
+        }
+
         $scopes = 'read_products,read_inventory,read_locations,read_script_tags,write_script_tags,read_customers,write_customers';
         $redirectUri = urlencode(env('APP_URL') . '/shopify/callback');
         $apiKey = env('SHOPIFY_API_KEY');
         $installUrl = "https://{$shop}/admin/oauth/authorize?client_id={$apiKey}&scope={$scopes}&redirect_uri={$redirectUri}&state=123&grant_options[]=per-user";
+        
+        Log::info("Redirecting to Shopify install URL for shop: {$shop}");
         return redirect($installUrl);
     }
 
-    /**
-     * Call Back Function
-     * Handle Call back for Shopify
-    */
     public function callback(Request $request)
     {
+        Log::info('Shopify callback received', $request->all());
+
         if (!$this->validateHmac($request->all(), $request->get('hmac'))) {
+            Log::error('Invalid HMAC in callback', $request->all());
             abort(403, 'Invalid HMAC');
         }
 
@@ -39,38 +42,112 @@ class ShopifyController extends Controller
         $apiSecret = env('SHOPIFY_API_SECRET_KEY');
         $apiKey = env('SHOPIFY_API_KEY');
 
-        $response = Http::post("https://{$shop}/admin/oauth/access_token", [
-            'client_id' => $apiKey,
-            'client_secret' => $apiSecret,
-            'code' => $code,
-        ]);
-        $accessToken = $response['access_token'];
-        
-        ShopStorage::set($shop, $accessToken);
-        session(['shop' => $shop, 'access_token' => $accessToken]);
+        if (!$shop || !$code) {
+            Log::error('Missing shop or code in callback', $request->all());
+            abort(400, 'Missing required parameters');
+        }
 
-        // Inject ScriptTag with APP_URL
-        InjectScriptTagToShop::dispatch($shop, $accessToken); // using job
+        try {
+            // Exchange code for access token
+            $response = Http::post("https://{$shop}/admin/oauth/access_token", [
+                'client_id' => $apiKey,
+                'client_secret' => $apiSecret,
+                'code' => $code,
+            ]);
 
-        // echo"<pre>"; print_r($accessToken);  die;
+            if ($response->failed()) {
+                Log::error('Failed to get access token from Shopify', [
+                    'shop' => $shop,
+                    'response' => $response->json()
+                ]);
+                abort(500, 'Failed to authenticate with Shopify');
+            }
 
-        $lastDate = '05-07-2025';
-        return view('shopify.installed', [
-            'shop' => $shop,
-            'unsubscribedCount' => '12345',
-            'lastUnsubscribedAt' => $lastDate ? \Carbon\Carbon::parse($lastDate)->format('d M Y, h:i A') : null,
-        ]);
+            $accessToken = $response['access_token'];
+            
+            // Store in SQLite database
+            $stored = ShopStorage::set($shop, $accessToken);
+            
+            if (!$stored) {
+                Log::error('Failed to store access token in database', ['shop' => $shop]);
+                abort(500, 'Failed to store authentication data');
+            }
+
+            // Set session data
+            session(['shop' => $shop, 'access_token' => $accessToken]);
+
+            // Inject ScriptTag with APP_URL
+            InjectScriptTagToShop::dispatch($shop, $accessToken);
+
+            Log::info("Shop {$shop} installed successfully");
+
+            // Get some stats for the view (you can customize this)
+            $unsubscribedCount = $this->getUnsubscribedCount($shop, $accessToken);
+            $lastDate = '05-07-2025'; // You can implement this logic
+
+            return view('shopify.installed', [
+                'shop' => $shop,
+                'unsubscribedCount' => $unsubscribedCount,
+                'lastUnsubscribedAt' => $lastDate ? \Carbon\Carbon::parse($lastDate)->format('d M Y, h:i A') : null,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Exception during Shopify callback', [
+                'shop' => $shop,
+                'error' => $e->getMessage()
+            ]);
+            abort(500, 'Installation failed');
+        }
     }
 
-    /**
-     * Shopify ValidateHmac 
-    */
     private function validateHmac($params, $hmac)
     {
+        if (!$hmac) {
+            return false;
+        }
+
         unset($params['hmac'], $params['signature']);
         ksort($params);
         $computedHmac = hash_hmac('sha256', http_build_query($params), env('SHOPIFY_API_SECRET_KEY'));
+        
         return hash_equals($computedHmac, $hmac);
     }
-}
 
+    /**
+     * Get unsubscribed customers count (optional method for dashboard)
+     */
+    private function getUnsubscribedCount($shop, $accessToken)
+    {
+        try {
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $accessToken,
+            ])->get("https://{$shop}/admin/api/2024-04/customers.json", [
+                'email_marketing_consent.state' => 'unsubscribed',
+                'limit' => 1 // Just to get count
+            ]);
+
+            if ($response->successful()) {
+                return count($response['customers']) ?? 0;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to get unsubscribed count', ['error' => $e->getMessage()]);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Uninstall webhook handler (optional)
+     */
+    public function uninstall(Request $request)
+    {
+        $shop = $request->header('X-Shopify-Shop-Domain');
+        
+        if ($shop) {
+            ShopStorage::delete($shop);
+            Log::info("Shop {$shop} uninstalled and removed from database");
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+}
