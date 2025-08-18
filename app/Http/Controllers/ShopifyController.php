@@ -52,7 +52,7 @@ class ShopifyController extends Controller
         // Inject ScriptTag with APP_URL
         InjectScriptTagToShop::dispatch($shop, $accessToken); // using job
 
-        // echo"<pre>"; print_r($accessToken);  die;
+        echo"<pre>"; print_r($accessToken);  die;
 
         $lastDate = '05-07-2025';
         return view('shopify.installed', [
