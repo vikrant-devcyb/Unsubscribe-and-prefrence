@@ -27,7 +27,7 @@ class ProxyController extends Controller
         return $this->unsubscribeCustomer($request);
     }
 
-    private function validateSignature($params, $signature)
+    /*private function validateSignature($params, $signature)
     {
         if (!$signature) {
             Log::warning('No signature provided');
@@ -44,9 +44,44 @@ class ProxyController extends Controller
         $params = array_diff_key($params, array('signature' => ''));
         ksort($params);
         $params = str_replace("%2F", "/", http_build_query($params));
-        $params = str_replace("&", "", $params);
+        // $params = str_replace("&", "", $params);
         $params = str_replace("%2C", ",", $params);
         $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
+        
+        return hash_equals($signature, $computed_hmac);
+    }*/
+
+
+    private function validateSignature($params, $signature)
+    {
+        if (!$signature) {
+            Log::warning('No signature provided');
+            return false;
+        }
+
+        // Try API SECRET first (most common for app proxy)
+        $shared_secret = config('shopify.api_secret');
+        
+        // Fallback to API KEY if secret doesn't work
+        if (!$shared_secret) {
+            $shared_secret = config('shopify.api_key');
+        }
+
+        $params = request()->all();
+        
+        if (!isset($params['logged_in_customer_id'])) {
+            $params['logged_in_customer_id'] = "";
+        }
+
+        $params = array_diff_key($params, array('signature' => ''));
+        ksort($params);
+        
+        // Build query string without removing & characters
+        $query_string = http_build_query($params);
+        $query_string = str_replace("%2F", "/", $query_string);
+        $query_string = str_replace("%2C", ",", $query_string);
+        
+        $computed_hmac = hash_hmac('sha256', $query_string, $shared_secret);
         
         return hash_equals($signature, $computed_hmac);
     }
