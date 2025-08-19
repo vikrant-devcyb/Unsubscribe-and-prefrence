@@ -53,25 +53,21 @@ class ProxyController extends Controller
             return false;
         }
 
-        // Use API SECRET (not API key!)
         $shared_secret = env('SHOPIFY_API_SECRET_KEY');
 
-        // Remove 'signature' from params
         unset($params['signature']);
-
-        // Shopify requires ksort by key
         ksort($params);
 
-        // Build query string (RFC3986 encoding)
-        $queryString = urldecode(http_build_query($params, '', '&', PHP_QUERY_RFC3986));
+        // DO NOT urldecode here
+        $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
 
-        // Compute HMAC
         $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
 
         Log::info('Computed HMAC', [
             'queryString' => $queryString,
             'computed' => $computed_hmac,
             'signature' => $signature,
+            'shared_secret' => $shared_secret
         ]);
 
         return hash_equals($signature, $computed_hmac);
