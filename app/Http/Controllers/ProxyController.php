@@ -12,7 +12,10 @@ class ProxyController extends Controller
     public function handle(Request $request)
     {
         $shared_secret = config('shopify.api_secret');
-        dd($shared_secret);
+
+        return response()->json(['message' => 'Customer unsubscribed successfully', 'data' => $shared_secret]);
+
+        // dd($shared_secret);
         $action = $request->query('action');
         Log::info('Proxy hit', $request->all());
 
