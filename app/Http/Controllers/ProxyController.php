@@ -22,14 +22,14 @@ class ProxyController extends Controller
         return $this->unsubscribeCustomer($request);
     }
 
-    private function validateSignature($params, $signature)
+    /*private function validateSignature($params, $signature)
     {
         if (!$signature) {
             Log::warning('No signature provided');
             return false;
         }
 
-        $shared_secret = env('SHOPIFY_API_KEY');
+        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
         $params = request()->all();
         
         if (!isset($params['logged_in_customer_id'])) {
@@ -43,6 +43,37 @@ class ProxyController extends Controller
         $params = str_replace("%2C", ",", $params);
         $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
         
+        return hash_equals($signature, $computed_hmac);
+    }*/
+
+    private function validateSignature($params, $signature)
+    {
+        if (!$signature) {
+            Log::warning('No signature provided');
+            return false;
+        }
+
+        // Use API SECRET (not API key!)
+        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+
+        // Remove 'signature' from params
+        unset($params['signature']);
+
+        // Shopify requires ksort by key
+        ksort($params);
+
+        // Build query string (RFC3986 encoding)
+        $queryString = urldecode(http_build_query($params, '', '&', PHP_QUERY_RFC3986));
+
+        // Compute HMAC
+        $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
+
+        Log::info('Computed HMAC', [
+            'queryString' => $queryString,
+            'computed' => $computed_hmac,
+            'signature' => $signature,
+        ]);
+
         return hash_equals($signature, $computed_hmac);
     }
 
