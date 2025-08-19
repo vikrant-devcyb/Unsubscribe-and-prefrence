@@ -30,18 +30,37 @@ class ProxyController extends Controller
         }
 
         $shared_secret = env('SHOPIFY_API_SECRET_KEY');
-        $params = request()->all();
         
-        if (!isset($params['logged_in_customer_id'])) {
+        // Remove signature and hmac from params
+        unset($params['signature']);
+        unset($params['hmac']);
+        
+        // Handle empty logged_in_customer_id
+        if (!isset($params['logged_in_customer_id']) || $params['logged_in_customer_id'] === '') {
             $params['logged_in_customer_id'] = "";
         }
 
-        $params = array_diff_key($params, array('signature' => ''));
+        // Sort parameters by key
         ksort($params);
-        $params = str_replace("%2F", "/", http_build_query($params));
-        $params = str_replace("&", "", $params);
-        $params = str_replace("%2C", ",", $params);
-        $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
+        
+        // Build query string for signature validation
+        $queryString = http_build_query($params);
+        
+        // Apply URL decoding transformations as per Shopify requirements
+        $queryString = str_replace('%2F', '/', $queryString);
+        $queryString = str_replace('%2C', ',', $queryString);
+        $queryString = str_replace('+', '%20', $queryString);
+        
+        Log::info('Query string for signature validation', ['query_string' => $queryString]);
+        
+        // Compute HMAC
+        $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
+        
+        Log::info('Signature validation', [
+            'provided_signature' => $signature,
+            'computed_hmac' => $computed_hmac,
+            'query_string' => $queryString
+        ]);
         
         return hash_equals($signature, $computed_hmac);
     }
