@@ -12,38 +12,67 @@ class ProxyController extends Controller
     public function handle(Request $request)
     {
         $action = $request->query('action');
-        Log::info('Proxy hit', $request->all());
+        Log::info('Proxy hit', [
+            'all_params' => $request->all(),
+            'query_string' => $request->getQueryString(),
+            'method' => $request->method(),
+            'url' => $request->fullUrl()
+        ]);
 
-        if (!$this->validateSignature($request->all(), $request->get('signature'))) {
-            Log::error('Invalid app proxy signature', $request->all());
+        if (!$this->validateSignature($request)) {
+            Log::error('Invalid app proxy signature', [
+                'params' => $request->all(),
+                'query_string' => $request->getQueryString(),
+                'signature' => $request->get('signature')
+            ]);
             return response()->json(['error' => 'Invalid app proxy signature'], 403);
         }
         
         return $this->unsubscribeCustomer($request);
     }
 
-    private function validateSignature($params, $signature)
+    /**
+     * Validate Shopify App Proxy signature
+     * Reference: https://shopify.dev/docs/apps/build/authentication-authorization/verify-app-proxy-requests
+     */
+    private function validateSignature(Request $request)
     {
+        $signature = $request->get('signature');
+        
         if (!$signature) {
-            Log::warning('No signature provided');
+            Log::warning('No signature provided in app proxy request');
             return false;
         }
 
-        $shared_secret = env('SHOPIFY_API_KEY');
-        $params = request()->all();
+        // Get all query parameters except signature
+        $params = $request->query();
+        unset($params['signature']);
+
+        // Sort parameters by key
+        ksort($params);
+
+        // Build query string for signature validation
+        $queryString = http_build_query($params);
         
-        if (!isset($params['logged_in_customer_id'])) {
-            $params['logged_in_customer_id'] = "";
+        // Shopify app proxy signature validation uses the API secret
+        $apiSecret = config('shopify.api_secret') ?? env('SHOPIFY_API_SECRET_KEY');
+        
+        if (!$apiSecret) {
+            Log::error('Shopify API secret not configured');
+            return false;
         }
 
-        $params = array_diff_key($params, array('signature' => ''));
-        ksort($params);
-        $params = str_replace("%2F", "/", http_build_query($params));
-        $params = str_replace("&", "", $params);
-        $params = str_replace("%2C", ",", $params);
-        $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
-        
-        return hash_equals($signature, $computed_hmac);
+        // Generate HMAC
+        $computedSignature = hash_hmac('sha256', $queryString, $apiSecret);
+
+        Log::info('Signature validation details', [
+            'query_string_for_signature' => $queryString,
+            'provided_signature' => $signature,
+            'computed_signature' => $computedSignature,
+            'signatures_match' => hash_equals($computedSignature, $signature)
+        ]);
+
+        return hash_equals($computedSignature, $signature);
     }
 
     public function unsubscribeCustomer(Request $request)
@@ -52,6 +81,10 @@ class ProxyController extends Controller
         $shopDomain = $request->query('shop');
 
         if (!$email || !$shopDomain) {
+            Log::error('Missing required parameters', [
+                'email' => $email,
+                'shop' => $shopDomain
+            ]);
             return response()->json(['error' => 'Missing email or shop parameter'], 400);
         }
 
@@ -63,47 +96,77 @@ class ProxyController extends Controller
             return response()->json(['error' => 'Shop not found or not authenticated'], 404);
         }
 
-        // Search for customer
-        $searchResponse = Http::withHeaders([
-            'X-Shopify-Access-Token' => $accessToken,
-        ])->get("https://{$shopDomain}/admin/api/2024-04/customers/search.json", [
-            'query' => $email
-        ]);
-
-        if ($searchResponse->failed() || empty($searchResponse['customers'])) {
-            Log::error("Customer not found: {$email} in shop: {$shopDomain}");
-            return response()->json(['error' => 'Customer not found'], 404);
-        }
-
-        $customer = $searchResponse['customers'][0];
-        $customerId = $customer['id'];
-        $emailConsent = $customer['email_marketing_consent']['state'] ?? null;
-
-        if ($emailConsent === 'unsubscribed') {
-            return response()->json(['message' => 'Customer is already unsubscribed']);
-        }
-
-        // Update customer to unsubscribed
-        $updateResponse = Http::withHeaders([
-            'X-Shopify-Access-Token' => $accessToken,
-            'Content-Type' => 'application/json'
-        ])->put("https://{$shopDomain}/admin/api/2024-04/customers/{$customerId}.json", [
-            'customer' => [
-                'id' => $customerId,
-                'email_marketing_consent' => [
-                    'state' => 'unsubscribed'
-                ]
-            ]
-        ]);
-
-        if ($updateResponse->successful()) {
-            Log::info("Customer unsubscribed successfully: {$email} from shop: {$shopDomain}");
-            return response()->json(['message' => 'Customer unsubscribed successfully']);
-        } else {
-            Log::error("Failed to unsubscribe customer: {$email} from shop: {$shopDomain}", [
-                'response' => $updateResponse->json()
+        try {
+            // Search for customer
+            $searchResponse = Http::withHeaders([
+                'X-Shopify-Access-Token' => $accessToken,
+            ])->timeout(30)->get("https://{$shopDomain}/admin/api/2024-04/customers/search.json", [
+                'query' => $email
             ]);
-            return response()->json(['error' => 'Failed to unsubscribe customer'], 500);
+
+            if ($searchResponse->failed()) {
+                Log::error("Failed to search for customer", [
+                    'email' => $email,
+                    'shop' => $shopDomain,
+                    'status' => $searchResponse->status(),
+                    'response' => $searchResponse->body()
+                ]);
+                return response()->json(['error' => 'Failed to search for customer'], 500);
+            }
+
+            $customers = $searchResponse->json('customers', []);
+            
+            if (empty($customers)) {
+                Log::error("Customer not found: {$email} in shop: {$shopDomain}");
+                return response()->json(['error' => 'Customer not found'], 404);
+            }
+
+            $customer = $customers[0];
+            $customerId = $customer['id'];
+            $emailConsent = $customer['email_marketing_consent']['state'] ?? null;
+
+            Log::info("Found customer", [
+                'customer_id' => $customerId,
+                'email' => $email,
+                'current_consent' => $emailConsent
+            ]);
+
+            if ($emailConsent === 'unsubscribed') {
+                return response()->json(['message' => 'Customer is already unsubscribed']);
+            }
+
+            // Update customer to unsubscribed
+            $updateResponse = Http::withHeaders([
+                'X-Shopify-Access-Token' => $accessToken,
+                'Content-Type' => 'application/json'
+            ])->timeout(30)->put("https://{$shopDomain}/admin/api/2024-04/customers/{$customerId}.json", [
+                'customer' => [
+                    'id' => $customerId,
+                    'email_marketing_consent' => [
+                        'state' => 'unsubscribed'
+                    ]
+                ]
+            ]);
+
+            if ($updateResponse->successful()) {
+                Log::info("Customer unsubscribed successfully: {$email} from shop: {$shopDomain}");
+                return response()->json(['message' => 'Customer unsubscribed successfully']);
+            } else {
+                Log::error("Failed to unsubscribe customer: {$email} from shop: {$shopDomain}", [
+                    'status' => $updateResponse->status(),
+                    'response' => $updateResponse->json()
+                ]);
+                return response()->json(['error' => 'Failed to unsubscribe customer'], 500);
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Exception during unsubscribe process", [
+                'email' => $email,
+                'shop' => $shopDomain,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Internal server error'], 500);
         }
     }
 }
