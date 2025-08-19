@@ -29,7 +29,7 @@ class ProxyController extends Controller
             return false;
         }
 
-        $shared_secret = env('SHOPIFY_API_KEY');
+        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
         $params = request()->all();
         
         if (!isset($params['logged_in_customer_id'])) {
