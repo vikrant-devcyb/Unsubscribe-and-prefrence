@@ -13,6 +13,13 @@ class ProxyController extends Controller
     {
         $action = $request->query('action');
         Log::info('Proxy hit', $request->all());
+        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+        return response()->json([
+            'error' => 'Invalid app proxy signature',
+            'signature' => $request->get('signature'),
+            'logged_in_customer_id' => $request->get('logged_in_customer_id'),
+            'shared_secret' => $request->get('shared_secret'),
+        ], 403);
 
         // if (!$this->validateSignature($request->all(), $request->get('signature'))) {
         //     Log::error('Invalid app proxy signature', $request->all());
