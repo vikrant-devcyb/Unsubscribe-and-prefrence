@@ -43,13 +43,12 @@ class ProxyController extends Controller
         // Sort parameters by key
         ksort($params);
         
-        // Build query string for signature validation
-        $queryString = http_build_query($params);
-        
-        // Apply URL decoding transformations as per Shopify requirements
-        $queryString = str_replace('%2F', '/', $queryString);
-        $queryString = str_replace('%2C', ',', $queryString);
-        $queryString = str_replace('+', '%20', $queryString);
+        // Build query string manually to match Shopify's expectations
+        $queryPairs = [];
+        foreach ($params as $key => $value) {
+            $queryPairs[] = $key . '=' . $value;
+        }
+        $queryString = implode('&', $queryPairs);
         
         Log::info('Query string for signature validation', ['query_string' => $queryString]);
         
