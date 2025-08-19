@@ -22,30 +22,6 @@ class ProxyController extends Controller
         return $this->unsubscribeCustomer($request);
     }
 
-    // private function validateSignature($params, $signature)
-    // {
-    //     if (!$signature) {
-    //         Log::warning('No signature provided');
-    //         return false;
-    //     }
-
-    //     $shared_secret = env('SHOPIFY_API_SECRET_KEY');
-    //     $params = request()->all();
-        
-    //     if (!isset($params['logged_in_customer_id'])) {
-    //         $params['logged_in_customer_id'] = "";
-    //     }
-
-    //     $params = array_diff_key($params, array('signature' => ''));
-    //     ksort($params);
-    //     $params = str_replace("%2F", "/", http_build_query($params));
-    //     $params = str_replace("&", "", $params);
-    //     $params = str_replace("%2C", ",", $params);
-    //     $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
-        
-    //     return hash_equals($signature, $computed_hmac);
-    // }
-
     private function validateSignature($params, $signature)
     {
         if (!$signature) {
@@ -54,29 +30,19 @@ class ProxyController extends Controller
         }
 
         $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+        $params = request()->all();
+        
+        if (!isset($params['logged_in_customer_id'])) {
+            $params['logged_in_customer_id'] = "";
+        }
 
-        unset($params['signature']);
+        $params = array_diff_key($params, array('signature' => ''));
         ksort($params);
-
-        // DO NOT urldecode here
-        $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
-
-        Log::info('Validation Debug', [
-            'params_before_build' => $params,
-            'queryString' => $queryString,
-            'shared_secret_length' => strlen($shared_secret),
-            'shared_secret_snippet' => substr($shared_secret, 0, 6) . '...' 
-        ]);
-
-        $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
-
-        Log::info('Computed HMAC', [
-            'queryString' => $queryString,
-            'computed' => $computed_hmac,
-            'signature' => $signature,
-            'shared_secret' => $shared_secret
-        ]);
-
+        $params = str_replace("%2F", "/", http_build_query($params));
+        $params = str_replace("&", "", $params);
+        $params = str_replace("%2C", ",", $params);
+        $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
+        
         return hash_equals($signature, $computed_hmac);
     }
 
@@ -114,7 +80,7 @@ class ProxyController extends Controller
         $emailConsent = $customer['email_marketing_consent']['state'] ?? null;
 
         if ($emailConsent === 'unsubscribed') {
-            return response()->json(['message' => 'Your request has been received. Your email address would be removed from our marketing system within 24 hours']);
+            return response()->json(['message' => 'Customer is already unsubscribed']);
         }
 
         // Update customer to unsubscribed
