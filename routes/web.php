@@ -48,78 +48,51 @@ Route::get('/', function (Request $request) {
 /**
  * Tail the last N lines of a file efficiently.
  */
-function tail_file(string $path, int $lines = 2000): array
-{
-    if (!File::exists($path)) return [];
+// routes/web.php
 
-    $f = new SplFileObject($path, 'r');
-    $f->seek(PHP_INT_MAX);
-    $last = $f->key();
-
-    $buffer = [];
-    for ($line = 0; $line <= $last && count($buffer) < $lines; $line++) {
-        $f->seek($last - $line);
-        $buffer[] = rtrim($f->current(), "\r\n");
+if (!function_exists('tail_file')) {
+    function tail_file(string $path, int $lines = 2000): array {
+        if (!\Illuminate\Support\Facades\File::exists($path)) return [];
+        $f = new SplFileObject($path, 'r');
+        $f->seek(PHP_INT_MAX);
+        $last = $f->key();
+        $buffer = [];
+        for ($line = 0; $line <= $last && count($buffer) < $lines; $line++) {
+            $f->seek($last - $line);
+            $buffer[] = rtrim($f->current(), "\r\n");
+        }
+        return array_reverse($buffer);
     }
-    return array_reverse($buffer);
 }
 
-/**
- * Parse Laravel log lines into entries:
- * [YYYY-mm-dd HH:MM:SS] env.LEVEL: message
- * …(context/stack follows until the next entry)
- */
-function parse_laravel_log(array $lines): array
-{
-    $entries = [];
-    $current = null;
-
-    $pattern = '/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+([a-zA-Z0-9_]+)\.([A-Z]+):\s(.*)$/';
-
-    foreach ($lines as $line) {
-        if (preg_match($pattern, $line, $m)) {
-            // flush previous
-            if ($current) $entries[] = $current;
-
-            $current = [
-                'timestamp' => $m[1],
-                'env'       => $m[2],
-                'level'     => $m[3],
-                'message'   => $m[4],
-                'context'   => '',
-                'raw'       => $line,
-            ];
-        } else {
-            if ($current) {
-                $current['context'] .= ($current['context'] ? "\n" : '') . $line;
+if (!function_exists('parse_laravel_log')) {
+    function parse_laravel_log(array $lines): array {
+        $entries = [];
+        $current = null;
+        $pattern = '/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+([a-zA-Z0-9_]+)\.([A-Z]+):\s(.*)$/';
+        foreach ($lines as $line) {
+            if (preg_match($pattern, $line, $m)) {
+                if ($current) $entries[] = $current;
+                $current = ['timestamp'=>$m[1],'env'=>$m[2],'level'=>$m[3],'message'=>$m[4],'context'=>'','raw'=>$line];
             } else {
-                // lines that precede a first match (rare) — keep as generic entry
-                $entries[] = [
-                    'timestamp' => null,
-                    'env'       => null,
-                    'level'     => null,
-                    'message'   => $line,
-                    'context'   => '',
-                    'raw'       => $line,
-                ];
+                if ($current) $current['context'] .= ($current['context'] ? "\n" : '') . $line;
+                else $entries[] = ['timestamp'=>null,'env'=>null,'level'=>null,'message'=>$line,'context'=>'','raw'=>$line];
             }
         }
+        if ($current) $entries[] = $current;
+        return $entries;
     }
-    if ($current) $entries[] = $current;
-
-    return $entries;
 }
 
-/**
- * Pick the newest log file in storage/logs.
- */
-function latest_log_file(): ?string
-{
-    $files = glob(storage_path('logs') . DIRECTORY_SEPARATOR . '*.log');
-    if (!$files) return null;
-    usort($files, fn($a, $b) => filemtime($b) <=> filemtime($a));
-    return $files[0] ?? null;
+if (!function_exists('latest_log_file')) {
+    function latest_log_file(): ?string {
+        $files = glob(storage_path('logs') . DIRECTORY_SEPARATOR . '*.log');
+        if (!$files) return null;
+        usort($files, fn($a,$b) => filemtime($b) <=> filemtime($a));
+        return $files[0] ?? null;
+    }
 }
+
 
 Route::get('/view-debug-logs', function (Request $request) {
     // Optional: simple token guard
