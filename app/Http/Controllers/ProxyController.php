@@ -34,14 +34,19 @@ class ProxyController extends Controller
         //     return response()->json(['error' => 'Invalid app proxy signature'], 403);
         // }
 
+        
+
         return response()->json([
-            'error' => 'Invalid app proxy signature',
-            'logged_in_customer_id' => $params['logged_in_customer_id'],
-            'signature' => $request->get('signature'),
-            'all' => $params,
-            'computed_hmac' => $computed_hmac,
-            'shared_secret' => $shared_secret
-        ], 400);
+            'error'     => 'Invalid app proxy signature',
+            'debug'     => [
+                'qs'        => $request->getQueryString(),
+                'signature' => $request->query('signature'),
+                'all' => @$params,
+                'computed_hmac' => @$computed_hmac,
+                'shared_secret' => @$shared_secret,
+                'logged_in_customer_id' => $params['logged_in_customer_id'],
+            ],
+        ], 403);
         
         return $this->unsubscribeCustomer($request);
     }
