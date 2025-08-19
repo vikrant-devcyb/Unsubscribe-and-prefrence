@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Artisan;
 
 Route::get('/clear-cache', function () {
     Artisan::call('config:clear');
+    Artisan::call('config:cache');
     Artisan::call('cache:clear');
     Artisan::call('route:clear');
     Artisan::call('view:clear');
@@ -41,3 +42,28 @@ Route::get('/', function (Request $request) {
         return view('shopify.not_installed', ['shop' => $shop]);
     }
 })->name('shopify.home');
+
+// Add to routes/web.php for testing
+Route::get('/test-signature', function (Request $request) {
+    $signature = $request->get('signature');
+    $params = $request->query();
+    unset($params['signature']);
+    unset($params['hmac']);
+    
+    if (!isset($params['logged_in_customer_id'])) {
+        $params['logged_in_customer_id'] = '';
+    }
+    
+    ksort($params);
+    $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    $computed = hash_hmac('sha256', $queryString, env('SHOPIFY_API_SECRET_KEY'));
+    
+    return response()->json([
+        'provided_signature' => $signature,
+        'computed_signature' => $computed,
+        'query_string' => $queryString,
+        'params' => $params,
+        'match' => hash_equals($computed, $signature ?? ''),
+        'secret_configured' => !empty(env('SHOPIFY_API_SECRET_KEY'))
+    ], 200, [], JSON_PRETTY_PRINT);
+});
