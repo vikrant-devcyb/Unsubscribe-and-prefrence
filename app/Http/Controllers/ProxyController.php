@@ -30,6 +30,7 @@ class ProxyController extends Controller
         }
 
         $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+        dd($shared_secret);
         $params = request()->all();
         
         if (!isset($params['logged_in_customer_id'])) {
