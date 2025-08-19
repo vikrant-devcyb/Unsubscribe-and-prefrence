@@ -22,7 +22,7 @@ class ProxyController extends Controller
         return $this->unsubscribeCustomer($request);
     }
 
-    /*private function validateSignature($params, $signature)
+    private function validateSignature($params, $signature)
     {
         if (!$signature) {
             Log::warning('No signature provided');
@@ -44,34 +44,34 @@ class ProxyController extends Controller
         $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
         
         return hash_equals($signature, $computed_hmac);
-    }*/
-
-    private function validateSignature($params, $signature)
-    {
-        if (!$signature) {
-            Log::warning('No signature provided');
-            return false;
-        }
-
-        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
-
-        unset($params['signature']);
-        ksort($params);
-
-        // DO NOT urldecode here
-        $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
-
-        $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
-
-        Log::info('Computed HMAC', [
-            'queryString' => $queryString,
-            'computed' => $computed_hmac,
-            'signature' => $signature,
-            'shared_secret' => $shared_secret
-        ]);
-
-        return hash_equals($signature, $computed_hmac);
     }
+
+    // private function validateSignature($params, $signature)
+    // {
+    //     if (!$signature) {
+    //         Log::warning('No signature provided');
+    //         return false;
+    //     }
+
+    //     $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+
+    //     unset($params['signature']);
+    //     ksort($params);
+
+    //     // DO NOT urldecode here
+    //     $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+
+    //     $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
+
+    //     Log::info('Computed HMAC', [
+    //         'queryString' => $queryString,
+    //         'computed' => $computed_hmac,
+    //         'signature' => $signature,
+    //         'shared_secret' => $shared_secret
+    //     ]);
+
+    //     return hash_equals($signature, $computed_hmac);
+    // }
 
     public function unsubscribeCustomer(Request $request)
     {
