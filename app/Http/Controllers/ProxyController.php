@@ -13,11 +13,35 @@ class ProxyController extends Controller
     {
         $action = $request->query('action');
         Log::info('Proxy hit', $request->all());
+       
+        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+        $params = request()->all();
+        
+        if (!isset($params['logged_in_customer_id'])) {
+            $params['logged_in_customer_id'] = "";
+        }
+
+        $params = array_diff_key($params, array('signature' => ''));
+        ksort($params);
+        $params = str_replace("%2F", "/", http_build_query($params));
+        $params = str_replace("&", "", $params);
+        $params = str_replace("%2C", ",", $params);
+        $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
+
 
         // if (!$this->validateSignature($request->all(), $request->get('signature'))) {
         //     Log::error('Invalid app proxy signature', $request->all());
         //     return response()->json(['error' => 'Invalid app proxy signature'], 403);
         // }
+
+        return response()->json([
+            'error' => 'Invalid app proxy signature',
+            'logged_in_customer_id' => $params['logged_in_customer_id'],
+            'signature' => $request->get('signature'),
+            'all' => $params,
+            'computed_hmac' => $computed_hmac,
+            'shared_secret' => $shared_secret
+        ], 400);
         
         return $this->unsubscribeCustomer($request);
     }
