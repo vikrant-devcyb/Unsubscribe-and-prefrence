@@ -34,8 +34,9 @@ async function unsubscribeCustomer(email, shop) {
         return;
     }
     // showLoader();
-
+    console.warn("ShowLoader");
     try {
+        console.warn("InSide Try");
         const url = `/apps/unsubscribe-preference?action=unsubscribe&email=${encodeURIComponent(email)}&shop=${encodeURIComponent(shop)}`;
         const response = await fetch(url);
         const data = await response.json();
@@ -68,7 +69,9 @@ async function unsubscribeCustomer(email, shop) {
     if (isUnsubscribePage) {
         const unsubscribeBtn = document.getElementById('unsubscribeButton');
         if (unsubscribeBtn) {
+            console.warn("InSide BTN");
             unsubscribeBtn.addEventListener('click', function(){
+                console.warn("Click Event");
                 unsubscribeCustomer(email, shop);
             });
         } else {
