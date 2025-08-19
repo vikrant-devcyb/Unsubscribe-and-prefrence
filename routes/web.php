@@ -43,7 +43,22 @@ Route::get('/', function (Request $request) {
     }
 })->name('shopify.home');
 
-// Add to routes/web.php for testing
+
+
+// Test route that doesn't require signature validation
+Route::get('/proxy-test', function (Request $request) {
+    return response()->json([
+        'status' => 'App proxy is reachable',
+        'timestamp' => now(),
+        'all_params' => $request->all(),
+        'query_string' => $request->getQueryString(),
+        'shop' => $request->get('shop'),
+        'signature_provided' => !empty($request->get('signature')),
+        'headers' => $request->headers->all()
+    ], 200, [], JSON_PRETTY_PRINT);
+});
+
+// Test signature validation specifically
 Route::get('/test-signature', function (Request $request) {
     $signature = $request->get('signature');
     $params = $request->query();
@@ -64,6 +79,8 @@ Route::get('/test-signature', function (Request $request) {
         'query_string' => $queryString,
         'params' => $params,
         'match' => hash_equals($computed, $signature ?? ''),
-        'secret_configured' => !empty(env('SHOPIFY_API_SECRET_KEY'))
+        'secret_configured' => !empty(env('SHOPIFY_API_SECRET_KEY')),
+        'secret_length' => strlen(env('SHOPIFY_API_SECRET_KEY') ?? ''),
+        'request_came_from_shopify' => str_contains($request->header('User-Agent', ''), 'Shopify') || !empty($request->get('shop'))
     ], 200, [], JSON_PRETTY_PRINT);
 });
