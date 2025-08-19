@@ -30,18 +30,30 @@ class ProxyController extends Controller
         }
 
         $shared_secret = env('SHOPIFY_API_SECRET_KEY');
-        $params = request()->all();
         
-        if (!isset($params['logged_in_customer_id'])) {
-            $params['logged_in_customer_id'] = "";
-        }
-
-        $params = array_diff_key($params, array('signature' => ''));
+        Log::info('Using secret key', ['secret_length' => strlen($shared_secret), 'secret_prefix' => substr($shared_secret, 0, 8)]);
+        
+        // Remove signature and hmac from params (same as your validateHmac function)
+        unset($params['signature'], $params['hmac']);
+        
+        // Sort parameters by key (same as your validateHmac function)
         ksort($params);
-        $params = str_replace("%2F", "/", http_build_query($params));
-        $params = str_replace("&", "", $params);
-        $params = str_replace("%2C", ",", $params);
-        $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
+        
+        Log::info('Sorted parameters', $params);
+        
+        // Use http_build_query like your working validateHmac function
+        $queryString = http_build_query($params);
+        
+        Log::info('Query string for signature validation', ['query_string' => $queryString]);
+        
+        // Compute HMAC (same as your validateHmac function)
+        $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
+        
+        Log::info('Signature validation', [
+            'provided_signature' => $signature,
+            'computed_hmac' => $computed_hmac,
+            'query_string' => $queryString
+        ]);
         
         return hash_equals($signature, $computed_hmac);
     }
