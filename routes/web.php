@@ -4,9 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShopifyController;
 use App\Http\Controllers\ProxyController;
 use App\Helpers\ShopStorage;
-use Illuminate\Support\Facades\Request;
+// use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Http\Request;
 
 Route::get('/clear-cache', function () {
     Artisan::call('config:clear');
