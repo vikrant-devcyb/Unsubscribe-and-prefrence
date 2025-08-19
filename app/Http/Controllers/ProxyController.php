@@ -61,6 +61,13 @@ class ProxyController extends Controller
         // DO NOT urldecode here
         $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
 
+        Log::info('Validation Debug', [
+            'params_before_build' => $params,
+            'queryString' => $queryString,
+            'shared_secret_length' => strlen($shared_secret),
+            'shared_secret_snippet' => substr($shared_secret, 0, 6) . '...' 
+        ]);
+
         $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
 
         Log::info('Computed HMAC', [
