@@ -29,8 +29,11 @@ class ProxyController extends Controller
             return false;
         }
 
-        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
-        dd($shared_secret);
+        $shared_secret = config('shopify.api_secret');;
+        // dd($shared_secret);
+
+        return response()->json(['error' => 'Failed to unsubscribe customer', 'data' => $shared_secret], 500);
+
         $params = request()->all();
         
         if (!isset($params['logged_in_customer_id'])) {
