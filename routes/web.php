@@ -41,15 +41,3 @@ Route::get('/', function (Request $request) {
         return view('shopify.not_installed', ['shop' => $shop]);
     }
 })->name('shopify.home');
-
-// Add to routes/web.php
-Route::get('/debug-request', function (Request $request) {    
-    return response()->json([
-        'status' => 'Request received successfully',
-        'timestamp' => now(),
-        'url' => $request->fullUrl(),
-        'host' => $request->getHost(),
-        'user_agent' => $request->header('User-Agent'),
-        'all_params' => $request->all()
-    ], 200, [], JSON_PRETTY_PRINT);
-});
