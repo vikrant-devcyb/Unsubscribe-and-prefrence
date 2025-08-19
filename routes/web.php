@@ -17,14 +17,6 @@ Route::get('/clear-cache', function () {
     return 'Config, cache, route, and view caches cleared!';
 });
 
-Route::get('/clear-cache-1', function () {
-
-    Artisan::call('optimize:clear');
-
-    return 'Optimize cleared!';
-});
-
-
 
 // OAuth start
 Route::get('/shopify/install', [ShopifyController::class, 'install']);

@@ -80,7 +80,7 @@ class ProxyController extends Controller
         $emailConsent = $customer['email_marketing_consent']['state'] ?? null;
 
         if ($emailConsent === 'unsubscribed') {
-            return response()->json(['message' => 'Customer is already unsubscribed']);
+            return response()->json(['message' => 'Your request has been received. Your email address would be removed from our marketing system within 24 hours']);
         }
 
         // Update customer to unsubscribed
