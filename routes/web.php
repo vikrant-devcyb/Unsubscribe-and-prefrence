@@ -13,9 +13,17 @@ Route::get('/clear-cache', function () {
     Artisan::call('cache:clear');
     Artisan::call('route:clear');
     Artisan::call('view:clear');
-    
+
     return 'Config, cache, route, and view caches cleared!';
 });
+
+Route::get('/clear-cache-1', function () {
+
+    Artisan::call('optimize:clear');
+
+    return 'Optimize cleared!';
+});
+
 
 Route::get('/logs', function () {
     $logs = LogViewer::getLogs(200); // last 200 lines

@@ -29,19 +29,29 @@ class ProxyController extends Controller
             return false;
         }
 
-        $shared_secret = env('SHOPIFY_API_SECRET_KEY');
+        // IMPORTANT: For app proxy, use CLIENT SECRET, not API Secret Key
+        $client_secret = env('SHOPIFY_CLIENT_SECRET'); // Try this first
+        
+        // Fallback to the existing env variable if SHOPIFY_CLIENT_SECRET doesn't exist
+        if (!$client_secret) {
+            $client_secret = env('SHOPIFY_API_SECRET_KEY');
+        }
+        
+        Log::info('Using secret key', ['secret_length' => strlen($client_secret), 'secret_prefix' => substr($client_secret, 0, 8)]);
         
         // Remove signature and hmac from params
         unset($params['signature']);
         unset($params['hmac']);
         
-        // Handle empty logged_in_customer_id
+        // Handle empty logged_in_customer_id - ensure it's a string
         if (!isset($params['logged_in_customer_id']) || $params['logged_in_customer_id'] === '') {
             $params['logged_in_customer_id'] = "";
         }
 
-        // Sort parameters by key
+        // Sort parameters by key (alphabetically)
         ksort($params);
+        
+        Log::info('Sorted parameters', $params);
         
         // Build query string manually to match Shopify's expectations
         $queryPairs = [];
@@ -53,13 +63,29 @@ class ProxyController extends Controller
         Log::info('Query string for signature validation', ['query_string' => $queryString]);
         
         // Compute HMAC
-        $computed_hmac = hash_hmac('sha256', $queryString, $shared_secret);
+        $computed_hmac = hash_hmac('sha256', $queryString, $client_secret);
         
         Log::info('Signature validation', [
             'provided_signature' => $signature,
             'computed_hmac' => $computed_hmac,
-            'query_string' => $queryString
+            'query_string' => $queryString,
+            'secret_used' => substr($client_secret, 0, 8) . '...'
         ]);
+        
+        // Try with both possible secret keys if they're different
+        $api_secret = env('SHOPIFY_API_SECRET_KEY');
+        if ($client_secret !== $api_secret && $api_secret) {
+            $computed_hmac_alt = hash_hmac('sha256', $queryString, $api_secret);
+            Log::info('Alternative signature validation with API secret', [
+                'computed_hmac_alt' => $computed_hmac_alt,
+                'api_secret_prefix' => substr($api_secret, 0, 8)
+            ]);
+            
+            if (hash_equals($signature, $computed_hmac_alt)) {
+                Log::info('Signature validated with API secret key');
+                return true;
+            }
+        }
         
         return hash_equals($signature, $computed_hmac);
     }
