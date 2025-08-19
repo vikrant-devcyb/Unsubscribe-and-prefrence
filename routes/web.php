@@ -25,10 +25,6 @@ Route::get('/clear-cache-1', function () {
 });
 
 
-Route::get('/logs', function () {
-    $logs = LogViewer::getLogs(200); // last 200 lines
-    return view('logs.index', compact('logs'));
-});
 
 // OAuth start
 Route::get('/shopify/install', [ShopifyController::class, 'install']);
