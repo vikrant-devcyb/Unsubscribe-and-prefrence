@@ -44,8 +44,6 @@ class ProxyController extends Controller
         $params = str_replace("%2C", ",", $params);
         $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
         
-        Log::info('Just Check!!');
-
         return hash_equals($signature, $computed_hmac);
     }
 
@@ -83,7 +81,7 @@ class ProxyController extends Controller
         $emailConsent = $customer['email_marketing_consent']['state'] ?? null;
 
         if ($emailConsent === 'unsubscribed') {
-            return response()->json(['message' => 'Your request has been received. Your email address would be removed from our marketing system within 24 hours']);
+            return response()->json(['message' => 'Your request to unsubscribe has already been registered. Please allow upto 24 hours for the request to be processed']);
         }
 
         // Update customer to unsubscribed
@@ -101,7 +99,7 @@ class ProxyController extends Controller
 
         if ($updateResponse->successful()) {
             Log::info("Customer unsubscribed successfully: {$email} from shop: {$shopDomain}");
-            return response()->json(['message' => 'Customer unsubscribed successfully']);
+            return response()->json(['message' => 'Your request has been received. Your email address would be removed from our marketing system within 24 hours']);
         } else {
             Log::error("Failed to unsubscribe customer: {$email} from shop: {$shopDomain}", [
                 'response' => $updateResponse->json()
