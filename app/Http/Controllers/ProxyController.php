@@ -14,10 +14,10 @@ class ProxyController extends Controller
         $action = $request->query('action');
         Log::info('Proxy hit', $request->all());
 
-        // if (!$this->validateSignature($request->all(), $request->get('signature'))) {
-        //     Log::error('Invalid app proxy signature', $request->all());
-        //     return response()->json(['error' => 'Invalid app proxy signature'], 403);
-        // }
+        if (!$this->validateSignature($request->all(), $request->get('signature'))) {
+            Log::error('Invalid app proxy signature', $request->all());
+            return response()->json(['error' => 'Invalid app proxy signature'], 403);
+        }
         
         return $this->unsubscribeCustomer($request);
     }
@@ -40,9 +40,12 @@ class ProxyController extends Controller
         ksort($params);
         $params = str_replace("%2F", "/", http_build_query($params));
         $params = str_replace("&", "", $params);
+        $params = str_replace("%40", "@", $params);
         $params = str_replace("%2C", ",", $params);
         $computed_hmac = hash_hmac('sha256', $params, $shared_secret);
         
+        Log::info('Just Check!!');
+
         return hash_equals($signature, $computed_hmac);
     }
 
