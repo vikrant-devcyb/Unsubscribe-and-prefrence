@@ -21,7 +21,6 @@ class CustomerController extends Controller
 
             // Get access token from SQLite database
             $accessToken = ShopStorage::get($shopifyDomain);
-            
             if (!$accessToken) {
                 Log::error("Access token not found for shop: {$shopifyDomain}");
                 return $this->corsResponse(['error' => 'Shop not authenticated'], 401);
