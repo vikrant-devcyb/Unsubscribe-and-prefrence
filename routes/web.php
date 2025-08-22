@@ -47,7 +47,7 @@ Route::get('/', function (Request $request) {
 
     try {
         $shopModel = ShopStorage::getShop($shop);
-        dd($shopModel);
+        // dd($shopModel);
         if ($shopModel && $shopModel->access_token) {
             return view('shopify.dashboard', [
                 'shop' => $shop,
