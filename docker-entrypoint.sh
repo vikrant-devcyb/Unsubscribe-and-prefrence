@@ -17,9 +17,16 @@
 php artisan key:generate --force
 # php artisan migrate --force
 
-# Clear everything without caching
+# Clear any existing cache before caching (important!)
 php artisan config:clear
 php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+
+# Laravel setup
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 
 # Start queue in background
 php artisan queue:work --daemon &
