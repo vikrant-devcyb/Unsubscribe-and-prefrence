@@ -41,14 +41,14 @@ Route::get('/unsubscribe-preference-proxy-handler', [ProxyController::class, 'ha
 
 Route::get('/', function (Request $request) {
     $shop = request()->get('shop'); // Get ?shop= param if passed
-    
+    dd($shop);
     if (!$shop) {
         return view('welcome');
     }
 
     try {
         $shopModel = ShopStorage::getShop($shop);
-        dd($shopModel);
+        
         if ($shopModel && $shopModel->access_token) {
             return view('shopify.dashboard', [
                 'shop' => $shop,
