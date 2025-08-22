@@ -21,7 +21,6 @@ class CustomerController extends Controller
 
             $accessToken = ShopStorage::get($shopifyDomain);
             if (!$accessToken) {
-                Log::error("Access token not found for shop: {$shopifyDomain}");
                 return $this->corsResponse(['error' => 'Shop not authenticated'], 401);
             }
 
@@ -39,20 +38,15 @@ class CustomerController extends Controller
             ]);
 
             if ($response->successful()) {
-                Log::info("Customer tags updated successfully: {$customerId}");
                 return $this->corsResponse([
                     'status' => 'success',
                     'shopify_response' => $response->json(),
                 ]);
             } else {
-                Log::error("Failed to update customer tags: {$customerId}", [
-                    'response' => $response->json()
-                ]);
                 return $this->corsResponse(['error' => 'Failed to update customer tags'], 500);
             }
 
         } catch (\Exception $e) {
-            Log::error("Exception updating customer tags: " . $e->getMessage());
             return $this->corsResponse(['error' => 'Internal server error'], 500);
         }
     }
@@ -72,7 +66,6 @@ class CustomerController extends Controller
             $accessToken = ShopStorage::get($shopifyDomain);
             
             if (!$accessToken) {
-                Log::error("Access token not found for shop: {$shopifyDomain}");
                 return $this->corsResponse(['error' => 'Shop not authenticated'], 401);
             }
 
@@ -86,19 +79,14 @@ class CustomerController extends Controller
 
             if ($response->successful()) {
                 $customer = $response->json()['customer'];
-                Log::info("Customer tags retrieved successfully: {$customerId}");
                 return $this->corsResponse([
                     'tags' => $customer['tags'] ?? ''
                 ]);
             } else {
-                Log::error("Failed to get customer tags: {$customerId}", [
-                    'response' => $response->json()
-                ]);
                 return $this->corsResponse(['error' => 'Failed to get customer tags'], 500);
             }
 
         } catch (\Exception $e) {
-            Log::error("Exception getting customer tags: " . $e->getMessage());
             return $this->corsResponse(['error' => 'Internal server error'], 500);
         }
     }
@@ -113,7 +101,6 @@ class CustomerController extends Controller
         ];
 
         if (!in_array($origin, $allowedOrigins)) {
-            Log::warning("CORS not allowed for origin: {$origin}");
             return response()->json(['error' => 'CORS not allowed'], 403);
         }
 

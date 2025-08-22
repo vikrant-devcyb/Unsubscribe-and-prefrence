@@ -12,10 +12,7 @@ class ProxyController extends Controller
     public function handle(Request $request)
     {
         $action = $request->query('action');
-        Log::info('Proxy hit', $request->all());
-
         if (!$this->validateSignature($request->all(), $request->get('signature'))) {
-            Log::error('Invalid app proxy signature', $request->all());
             return response()->json(['error' => 'Invalid app proxy signature'], 403);
         }
         
@@ -25,7 +22,6 @@ class ProxyController extends Controller
     private function validateSignature($params, $signature)
     {
         if (!$signature) {
-            Log::warning('No signature provided');
             return false;
         }
 
@@ -59,7 +55,6 @@ class ProxyController extends Controller
         $accessToken = ShopStorage::get($shopDomain);
         
         if (!$accessToken) {
-            Log::error("Access token not found for shop: {$shopDomain}");
             return response()->json(['error' => 'Shop not found or not authenticated'], 404);
         }
 
@@ -71,7 +66,6 @@ class ProxyController extends Controller
         ]);
 
         if ($searchResponse->failed() || empty($searchResponse['customers'])) {
-            Log::error("Customer not found: {$email} in shop: {$shopDomain}");
             return response()->json(['error' => 'Customer not found'], 404);
         }
 
@@ -97,12 +91,8 @@ class ProxyController extends Controller
         ]);
 
         if ($updateResponse->successful()) {
-            Log::info("Customer unsubscribed successfully: {$email} from shop: {$shopDomain}");
             return response()->json(['message' => 'Your request has been received. Your email address would be removed from our marketing system within 24 hours']);
         } else {
-            Log::error("Failed to unsubscribe customer: {$email} from shop: {$shopDomain}", [
-                'response' => $updateResponse->json()
-            ]);
             return response()->json(['error' => 'Failed to unsubscribe customer'], 500);
         }
     }

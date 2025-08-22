@@ -35,7 +35,6 @@ class InjectScriptTagToShop implements ShouldQueue
         $accessToken = ShopStorage::get($this->shopDomain);
         
         if (!$accessToken) {
-            Log::error("Access token not found for shop: {$this->shopDomain}");
             throw new \Exception("Access token not found for shop: {$this->shopDomain}");
         }
 
@@ -45,10 +44,6 @@ class InjectScriptTagToShop implements ShouldQueue
             $scriptUrl = rtrim(env('APP_URL'), '/') . $scriptPath;
             
             try {
-                Log::info("Starting script injection for shop: {$this->shopDomain}", [
-                    'script_url' => $scriptUrl
-                ]);
-
                 // Remove existing ScriptTag with same src (optional cleanup)
                 $this->removeExistingScriptTag($accessToken, $scriptUrl);
 
@@ -56,18 +51,9 @@ class InjectScriptTagToShop implements ShouldQueue
                 $this->injectNewScriptTag($accessToken, $scriptUrl);
 
             } catch (\Exception $e) {
-                Log::error("ScriptTag injection failed", [
-                    'shop' => $this->shopDomain,
-                    'script' => $scriptUrl,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-
                 throw $e; // Will be retried by queue system
             }
         }
-
-        Log::info("Script injection completed successfully for shop: {$this->shopDomain}");
     }
 
     /**
@@ -81,11 +67,6 @@ class InjectScriptTagToShop implements ShouldQueue
             ])->get("https://{$this->shopDomain}/admin/api/2024-04/script_tags.json");
 
             if ($existing->failed()) {
-                Log::warning("Failed to fetch existing script tags", [
-                    'shop' => $this->shopDomain,
-                    'status' => $existing->status(),
-                    'response' => $existing->body()
-                ]);
                 return;
             }
 
@@ -100,31 +81,13 @@ class InjectScriptTagToShop implements ShouldQueue
 
                     if ($deleteResponse->successful()) {
                         $removedCount++;
-                        Log::info("Removed existing script tag", [
-                            'shop' => $this->shopDomain,
-                            'script_tag_id' => $tag['id'],
-                            'src' => $scriptUrl
-                        ]);
                     } else {
-                        Log::warning("Failed to remove existing script tag", [
-                            'shop' => $this->shopDomain,
-                            'script_tag_id' => $tag['id'],
-                            'status' => $deleteResponse->status(),
-                            'response' => $deleteResponse->body()
-                        ]);
+                        //
                     }
                 }
             }
 
-            if ($removedCount > 0) {
-                Log::info("Removed {$removedCount} existing script tag(s) for shop: {$this->shopDomain}");
-            }
-
         } catch (\Exception $e) {
-            Log::warning("Exception while removing existing script tags", [
-                'shop' => $this->shopDomain,
-                'error' => $e->getMessage()
-            ]);
             // Don't throw here - continue with injection even if cleanup fails
         }
     }
@@ -146,23 +109,9 @@ class InjectScriptTagToShop implements ShouldQueue
 
         if ($response->successful()) {
             $scriptTag = $response->json('script_tag', []);
-            Log::info("ScriptTag injected successfully", [
-                'shop' => $this->shopDomain,
-                'script_url' => $scriptUrl,
-                'script_tag_id' => $scriptTag['id'] ?? 'unknown',
-                'created_at' => $scriptTag['created_at'] ?? null
-            ]);
         } else {
             $errorMessage = "Failed to inject ScriptTag";
             $responseBody = $response->json();
-            
-            Log::error($errorMessage, [
-                'shop' => $this->shopDomain,
-                'script_url' => $scriptUrl,
-                'status' => $response->status(),
-                'response' => $responseBody,
-                'headers' => $response->headers()
-            ]);
 
             // Provide more specific error message based on response
             if ($response->status() === 401) {
@@ -183,10 +132,6 @@ class InjectScriptTagToShop implements ShouldQueue
      */
     public function failed(\Throwable $exception)
     {
-        Log::error("InjectScriptTagToShop job failed permanently", [
-            'shop' => $this->shopDomain,
-            'error' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString()
-        ]);
+        //
     }
 }

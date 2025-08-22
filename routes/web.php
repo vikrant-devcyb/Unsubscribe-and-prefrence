@@ -47,24 +47,15 @@ Route::get('/', function (Request $request) {
 
     try {
         $shopModel = ShopStorage::getShop($shop);
-        
-        Log::info('Dashboard check', [
-            'shop' => $shop,
-            'shop_model_exists' => $shopModel ? 'yes' : 'no',
-            'has_token' => $shopModel && $shopModel->access_token ? 'yes' : 'no'
-        ]);
-        
         if ($shopModel && $shopModel->access_token) {
             return view('shopify.dashboard', [
                 'shop' => $shop,
                 'installed_at' => $shopModel->installed_at
             ]);
         } else {
-            Log::warning('Redirecting to install - no valid token found', ['shop' => $shop]);
             return view('shopify.not_installed', ['shop' => $shop]);
         }
     } catch (\Exception $e) {
-        Log::error('Dashboard exception', ['shop' => $shop, 'error' => $e->getMessage()]);
         return view('shopify.not_installed', ['shop' => $shop]);
     }
 });
