@@ -40,15 +40,14 @@ Route::get('/shopify/callback', [ShopifyController::class, 'callback'])->name('s
 Route::get('/unsubscribe-preference-proxy-handler', [ProxyController::class, 'handle']);
 
 Route::get('/', function (Request $request) {
-    $shop = request()->get('shop'); // Get ?shop= param if passed
-    dd($shop);
+    $shop = request()->get('shop');
     if (!$shop) {
         return view('welcome');
     }
 
     try {
         $shopModel = ShopStorage::getShop($shop);
-        
+        dd($shopModel);
         if ($shopModel && $shopModel->access_token) {
             return view('shopify.dashboard', [
                 'shop' => $shop,
@@ -57,19 +56,7 @@ Route::get('/', function (Request $request) {
         } else {
             return view('shopify.not_installed', ['shop' => $shop]);
         }
-        
     } catch (\Exception $e) {        
         return view('shopify.not_installed', ['shop' => $shop]);
     }
-
-    // $encrypted = ShopStorage::get($shop);
-    // $accessToken = ShopStorage::decryptToken($encrypted);
-    
-    // $accessToken = ShopStorage::get($shop);
-    // $accessToken = env('SHOPIFY_ACCESS_TOKEN');
-    // if ($accessToken) {
-    //     return view('shopify.dashboard', ['shop' => $shop]);
-    // } else {
-    //     return view('shopify.not_installed', ['shop' => $shop]);
-    // }
 })->name('shopify.home');
