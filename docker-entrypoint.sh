@@ -17,6 +17,12 @@
 php artisan key:generate --force
 # php artisan migrate --force
 
+# Clear any existing cache before caching (important!)
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+
 # Laravel setup
 php artisan config:cache
 php artisan route:cache
@@ -33,4 +39,4 @@ php artisan queue:work --daemon &
 mkdir -p /app/storage
 
 # Start server
-php -S 0.0.0.0:${PORT:-8080} -t public
+php -S 0.0.0.0:${PORT:-8000} -t public
