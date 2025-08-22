@@ -32,4 +32,4 @@ php artisan queue:work --daemon &
 mkdir -p /app/storage
 
 # Start server
-php -S 0.0.0.0:${PORT:-8000} -t public
+php -S 0.0.0.0:${PORT:-8080} -t public
