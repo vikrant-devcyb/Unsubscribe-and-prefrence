@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Helpers\ShopStorage;
 use App\Jobs\InjectScriptTagToShop;
+use App\Helpers\ShopStorage;
 
 class ShopifyController extends Controller
 {
@@ -65,7 +65,7 @@ class ShopifyController extends Controller
 
             $accessToken = $response['access_token'];
             
-            // Store in SQLite database
+            // Store in JSON file using ShopStorage
             $stored = ShopStorage::set($shop, $accessToken);
             
             if (!$stored) {

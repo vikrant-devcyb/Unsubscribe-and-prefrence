@@ -19,7 +19,6 @@ class CustomerController extends Controller
             $customerId = $request->customer_id;
             $shopifyDomain = env('SHOPIFY_SHOP');
 
-            // Get access token from SQLite database
             $accessToken = ShopStorage::get($shopifyDomain);
             if (!$accessToken) {
                 Log::error("Access token not found for shop: {$shopifyDomain}");

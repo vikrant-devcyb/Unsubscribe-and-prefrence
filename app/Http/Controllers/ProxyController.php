@@ -56,7 +56,6 @@ class ProxyController extends Controller
             return response()->json(['error' => 'Missing email or shop parameter'], 400);
         }
 
-        // Get access token from SQLite database
         $accessToken = ShopStorage::get($shopDomain);
         
         if (!$accessToken) {

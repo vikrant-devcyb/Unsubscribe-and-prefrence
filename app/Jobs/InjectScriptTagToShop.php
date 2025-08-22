@@ -32,7 +32,6 @@ class InjectScriptTagToShop implements ShouldQueue
      */
     public function handle()
     {
-        // Get access token from SQLite database
         $accessToken = ShopStorage::get($this->shopDomain);
         
         if (!$accessToken) {

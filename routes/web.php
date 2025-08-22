@@ -6,17 +6,31 @@ use App\Http\Controllers\ProxyController;
 use App\Helpers\ShopStorage;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Artisan;
-use App\Models\LogViewer;
+
+Route::delete('/shop/{shop}', function ($shopDomain, Request $request) {
+    $deleted = ShopStorage::delete($shopDomain); // Changed from Shop model
+
+    if ($deleted) {
+        return redirect('/')->with('status', 'Shop data deleted successfully!');
+    }
+
+    return redirect('/')->with('error', 'Shop not found.');
+})->name('shop.delete');
 
 Route::get('/clear-cache', function () {
     Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('route:clear');
-    Artisan::call('view:clear');
 
     return 'Config, cache, route, and view caches cleared!';
 });
 
+// Debug route to check JSON file status
+Route::get('/debug-storage', function () {
+    if (!app()->environment('production')) {
+        $info = ShopStorage::getFileInfo();
+        return response()->json($info, 200, [], JSON_PRETTY_PRINT);
+    }
+    return abort(404);
+});
 
 // OAuth start
 Route::get('/shopify/install', [ShopifyController::class, 'install']);
@@ -30,16 +44,32 @@ Route::get('/', function (Request $request) {
     
     if (!$shop) {
         return view('welcome');
-        //return response("Missing shop parameter.", 400);
     }
+
+    try {
+        $shopModel = ShopStorage::getShop($shop);
+        
+        if ($shopModel && $shopModel->access_token) {
+            return view('shopify.dashboard', [
+                'shop' => $shop,
+                'installed_at' => $shopModel->installed_at
+            ]);
+        } else {
+            return view('shopify.not_installed', ['shop' => $shop]);
+        }
+        
+    } catch (\Exception $e) {        
+        return view('shopify.not_installed', ['shop' => $shop]);
+    }
+
     // $encrypted = ShopStorage::get($shop);
     // $accessToken = ShopStorage::decryptToken($encrypted);
     
-    $accessToken = ShopStorage::get($shop);
+    // $accessToken = ShopStorage::get($shop);
     // $accessToken = env('SHOPIFY_ACCESS_TOKEN');
-    if ($accessToken) {
-        return view('shopify.dashboard', ['shop' => $shop]);
-    } else {
-        return view('shopify.not_installed', ['shop' => $shop]);
-    }
+    // if ($accessToken) {
+    //     return view('shopify.dashboard', ['shop' => $shop]);
+    // } else {
+    //     return view('shopify.not_installed', ['shop' => $shop]);
+    // }
 })->name('shopify.home');
