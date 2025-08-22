@@ -28,9 +28,81 @@ class ShopifyController extends Controller
         return redirect($installUrl);
     }
 
+    // public function callback(Request $request)
+    // {
+    //     Log::info('Shopify callback received', $request->all());
+
+    //     if (!$this->validateHmac($request->all(), $request->get('hmac'))) {
+    //         Log::error('Invalid HMAC in callback', $request->all());
+    //         abort(403, 'Invalid HMAC');
+    //     }
+
+    //     $shop = $request->get('shop');
+    //     $code = $request->get('code');
+    //     $apiSecret = env('SHOPIFY_API_SECRET_KEY');
+    //     $apiKey = env('SHOPIFY_API_KEY');
+
+    //     if (!$shop || !$code) {
+    //         Log::error('Missing shop or code in callback', $request->all());
+    //         abort(400, 'Missing required parameters');
+    //     }
+
+    //     try {
+    //         // Exchange code for access token
+    //         $response = Http::post("https://{$shop}/admin/oauth/access_token", [
+    //             'client_id' => $apiKey,
+    //             'client_secret' => $apiSecret,
+    //             'code' => $code,
+    //         ]);
+
+    //         if ($response->failed() || !isset($response['access_token'])) {
+    //             Log::error('Failed to get access token from Shopify', [
+    //                 'shop' => $shop,
+    //                 'response' => $response->json()
+    //             ]);
+    //             abort(500, 'Failed to authenticate with Shopify');
+    //         }
+
+    //         $accessToken = $response['access_token'];
+            
+    //         // Store in JSON file using ShopStorage
+    //         $stored = ShopStorage::set($shop, $accessToken);
+            
+    //         if (!$stored) {
+    //             Log::error('Failed to store access token in database', ['shop' => $shop]);
+    //             abort(500, 'Failed to store authentication data');
+    //         }
+
+    //         // Set session data
+    //         session(['shop' => $shop, 'access_token' => $accessToken]);
+
+    //         // Inject ScriptTag with APP_URL
+    //         InjectScriptTagToShop::dispatch($shop, $accessToken);
+
+    //         Log::info("Shop {$shop} installed successfully");
+
+    //         // Get some stats for the view (you can customize this)
+    //         $unsubscribedCount = $this->getUnsubscribedCount($shop, $accessToken);
+    //         $lastDate = '05-07-2025'; // You can implement this logic
+
+    //         return view('shopify.installed', [
+    //             'shop' => $shop,
+    //             'unsubscribedCount' => $unsubscribedCount,
+    //             'lastUnsubscribedAt' => $lastDate ? \Carbon\Carbon::parse($lastDate)->format('d M Y, h:i A') : null,
+    //         ]);
+
+    //     } catch (\Exception $e) {
+    //         Log::error('Exception during Shopify callback', [
+    //             'shop' => $shop,
+    //             'error' => $e->getMessage()
+    //         ]);
+    //         abort(500, 'Installation failed');
+    //     }
+    // }
+
     public function callback(Request $request)
     {
-        Log::info('Shopify callback received', $request->all());
+        Log::info('=== CALLBACK START ===', $request->all());
 
         if (!$this->validateHmac($request->all(), $request->get('hmac'))) {
             Log::error('Invalid HMAC in callback', $request->all());
@@ -41,6 +113,13 @@ class ShopifyController extends Controller
         $code = $request->get('code');
         $apiSecret = env('SHOPIFY_API_SECRET_KEY');
         $apiKey = env('SHOPIFY_API_KEY');
+
+        Log::info('Environment check', [
+            'shop' => $shop,
+            'code' => $code ? 'present' : 'missing',
+            'api_key' => $apiKey ? 'present' : 'missing',
+            'api_secret' => $apiSecret ? 'present' : 'missing'
+        ]);
 
         if (!$shop || !$code) {
             Log::error('Missing shop or code in callback', $request->all());
@@ -55,48 +134,67 @@ class ShopifyController extends Controller
                 'code' => $code,
             ]);
 
-            if ($response->failed()) {
+            Log::info('Shopify token exchange response', [
+                'status' => $response->status(),
+                'successful' => $response->successful(),
+                'has_access_token' => isset($response['access_token']),
+                'response_keys' => array_keys($response->json() ?? [])
+            ]);
+
+            if ($response->failed() || !isset($response['access_token'])) {
                 Log::error('Failed to get access token from Shopify', [
                     'shop' => $shop,
+                    'status' => $response->status(),
                     'response' => $response->json()
                 ]);
                 abort(500, 'Failed to authenticate with Shopify');
             }
 
             $accessToken = $response['access_token'];
+            Log::info('Access token received', ['token_length' => strlen($accessToken)]);
             
             // Store in JSON file using ShopStorage
+            Log::info('Attempting to store token...');
             $stored = ShopStorage::set($shop, $accessToken);
             
+            Log::info('Storage result', [
+                'stored' => $stored,
+                'file_info' => ShopStorage::getFileInfo()
+            ]);
+            
             if (!$stored) {
-                Log::error('Failed to store access token in database', ['shop' => $shop]);
+                Log::error('Failed to store access token in JSON file', ['shop' => $shop]);
                 abort(500, 'Failed to store authentication data');
             }
+
+            // Test retrieval immediately
+            $retrievedToken = ShopStorage::get($shop);
+            Log::info('Token retrieval test', [
+                'retrieved' => $retrievedToken ? 'success' : 'failed',
+                'matches' => $retrievedToken === $accessToken
+            ]);
 
             // Set session data
             session(['shop' => $shop, 'access_token' => $accessToken]);
 
-            // Inject ScriptTag with APP_URL
+            // Inject ScriptTag
             InjectScriptTagToShop::dispatch($shop, $accessToken);
 
-            Log::info("Shop {$shop} installed successfully");
-
-            // Get some stats for the view (you can customize this)
-            $unsubscribedCount = $this->getUnsubscribedCount($shop, $accessToken);
-            $lastDate = '05-07-2025'; // You can implement this logic
+            Log::info("=== CALLBACK SUCCESS === Shop {$shop} installed successfully");
 
             return view('shopify.installed', [
                 'shop' => $shop,
-                'unsubscribedCount' => $unsubscribedCount,
-                'lastUnsubscribedAt' => $lastDate ? \Carbon\Carbon::parse($lastDate)->format('d M Y, h:i A') : null,
+                'unsubscribedCount' => 0,
+                'lastUnsubscribedAt' => null,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Exception during Shopify callback', [
+            Log::error('=== CALLBACK EXCEPTION ===', [
                 'shop' => $shop,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            abort(500, 'Installation failed');
+            abort(500, 'Installation failed: ' . $e->getMessage());
         }
     }
 
