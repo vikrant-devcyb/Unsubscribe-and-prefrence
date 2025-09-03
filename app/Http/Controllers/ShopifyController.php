@@ -21,7 +21,7 @@ class ShopifyController extends Controller
         $scopes = 'read_products,read_inventory,read_locations,read_script_tags,write_script_tags,read_customers,write_customers';
         $redirectUri = urlencode(env('APP_URL') . '/shopify/callback');
         $apiKey = env('SHOPIFY_API_KEY');
-        $installUrl = "https://{$shop}/admin/oauth/authorize?client_id={$apiKey}&scope={$scopes}&redirect_uri={$redirectUri}&state=123&grant_options[]=per-user";
+        $installUrl = "https://{$shop}/admin/oauth/authorize?client_id={$apiKey}&scope={$scopes}&redirect_uri={$redirectUri}&state=123";
         
         return redirect($installUrl);
     }
